@@ -22,6 +22,7 @@ type ProjectResponse struct {
 	Title       string  `json:"title"`
 	Description *string `json:"description"`
 	Icon        *string `json:"icon"`
+	LocalPath   *string `json:"local_path"`
 	Status      string  `json:"status"`
 	Priority    string  `json:"priority"`
 	LeadType    *string `json:"lead_type"`
@@ -39,6 +40,7 @@ func projectToResponse(p db.Project) ProjectResponse {
 		Title:       p.Title,
 		Description: textToPtr(p.Description),
 		Icon:        textToPtr(p.Icon),
+		LocalPath:   textToPtr(p.LocalPath),
 		Status:      p.Status,
 		Priority:    p.Priority,
 		LeadType:    textToPtr(p.LeadType),
@@ -60,6 +62,7 @@ type CreateProjectRequest struct {
 	Title       string  `json:"title"`
 	Description *string `json:"description"`
 	Icon        *string `json:"icon"`
+	LocalPath   *string `json:"local_path"`
 	Status      string  `json:"status"`
 	Priority    string  `json:"priority"`
 	LeadType    *string `json:"lead_type"`
@@ -70,6 +73,7 @@ type UpdateProjectRequest struct {
 	Title       *string `json:"title"`
 	Description *string `json:"description"`
 	Icon        *string `json:"icon"`
+	LocalPath   *string `json:"local_path"`
 	Status      *string `json:"status"`
 	Priority    *string `json:"priority"`
 	LeadType    *string `json:"lead_type"`
@@ -162,17 +166,25 @@ func (h *Handler) CreateProject(w http.ResponseWriter, r *http.Request) {
 	}
 	var leadType pgtype.Text
 	var leadID pgtype.UUID
+	var localPath pgtype.Text
 	if req.LeadType != nil {
 		leadType = pgtype.Text{String: *req.LeadType, Valid: true}
 	}
 	if req.LeadID != nil {
 		leadID = parseUUID(*req.LeadID)
 	}
+	if req.LocalPath != nil {
+		path := strings.TrimSpace(*req.LocalPath)
+		if path != "" {
+			localPath = pgtype.Text{String: path, Valid: true}
+		}
+	}
 	project, err := h.Queries.CreateProject(r.Context(), db.CreateProjectParams{
 		WorkspaceID: parseUUID(workspaceID),
 		Title:       req.Title,
 		Description: ptrToText(req.Description),
 		Icon:        ptrToText(req.Icon),
+		LocalPath:   localPath,
 		Status:      status,
 		LeadType:    leadType,
 		LeadID:      leadID,
@@ -256,6 +268,13 @@ func (h *Handler) UpdateProject(w http.ResponseWriter, r *http.Request) {
 			params.LeadID = parseUUID(*req.LeadID)
 		} else {
 			params.LeadID = pgtype.UUID{Valid: false}
+		}
+	}
+	if _, ok := rawFields["local_path"]; ok {
+		if req.LocalPath != nil && strings.TrimSpace(*req.LocalPath) != "" {
+			params.LocalPath = pgtype.Text{String: strings.TrimSpace(*req.LocalPath), Valid: true}
+		} else {
+			params.LocalPath = pgtype.Text{Valid: false}
 		}
 	}
 	project, err := h.Queries.UpdateProject(r.Context(), params)

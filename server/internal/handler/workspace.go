@@ -38,6 +38,7 @@ type WorkspaceResponse struct {
 	Slug        string  `json:"slug"`
 	Description *string `json:"description"`
 	Context     *string `json:"context"`
+	LocalPath   *string `json:"local_path"`
 	Settings    any     `json:"settings"`
 	Repos       any     `json:"repos"`
 	IssuePrefix string  `json:"issue_prefix"`
@@ -66,6 +67,7 @@ func workspaceToResponse(w db.Workspace) WorkspaceResponse {
 		Slug:        w.Slug,
 		Description: textToPtr(w.Description),
 		Context:     textToPtr(w.Context),
+		LocalPath:   textToPtr(w.LocalPath),
 		Settings:    settings,
 		Repos:       repos,
 		IssuePrefix: w.IssuePrefix,
@@ -128,6 +130,7 @@ type CreateWorkspaceRequest struct {
 	Slug        string  `json:"slug"`
 	Description *string `json:"description"`
 	Context     *string `json:"context"`
+	LocalPath   *string `json:"local_path"`
 	IssuePrefix *string `json:"issue_prefix"`
 }
 
@@ -169,6 +172,13 @@ func (h *Handler) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 	if req.IssuePrefix != nil && strings.TrimSpace(*req.IssuePrefix) != "" {
 		issuePrefix = strings.ToUpper(strings.TrimSpace(*req.IssuePrefix))
 	}
+	var localPath pgtype.Text
+	if req.LocalPath != nil {
+		path := strings.TrimSpace(*req.LocalPath)
+		if path != "" {
+			localPath = pgtype.Text{String: path, Valid: true}
+		}
+	}
 
 	qtx := h.Queries.WithTx(tx)
 	ws, err := qtx.CreateWorkspace(r.Context(), db.CreateWorkspaceParams{
@@ -177,6 +187,7 @@ func (h *Handler) CreateWorkspace(w http.ResponseWriter, r *http.Request) {
 		Description: ptrToText(req.Description),
 		Context:     ptrToText(req.Context),
 		IssuePrefix: issuePrefix,
+		LocalPath:   localPath,
 	})
 	if err != nil {
 		if isUniqueViolation(err) {
@@ -216,6 +227,7 @@ type UpdateWorkspaceRequest struct {
 	Name        *string `json:"name"`
 	Description *string `json:"description"`
 	Context     *string `json:"context"`
+	LocalPath   *string `json:"local_path"`
 	Settings    any     `json:"settings"`
 	Repos       any     `json:"repos"`
 	IssuePrefix *string `json:"issue_prefix"`
@@ -259,6 +271,14 @@ func (h *Handler) UpdateWorkspace(w http.ResponseWriter, r *http.Request) {
 		prefix := strings.ToUpper(strings.TrimSpace(*req.IssuePrefix))
 		if prefix != "" {
 			params.IssuePrefix = pgtype.Text{String: prefix, Valid: true}
+		}
+	}
+	if req.LocalPath != nil {
+		path := strings.TrimSpace(*req.LocalPath)
+		if path != "" {
+			params.LocalPath = pgtype.Text{String: path, Valid: true}
+		} else {
+			params.LocalPath = pgtype.Text{Valid: false}
 		}
 	}
 

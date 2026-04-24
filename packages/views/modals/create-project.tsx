@@ -27,6 +27,7 @@ import {
 import { Popover, PopoverTrigger, PopoverContent } from "@multica/ui/components/ui/popover";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@multica/ui/components/ui/tooltip";
 import { Button } from "@multica/ui/components/ui/button";
+import { Input } from "@multica/ui/components/ui/input";
 import { EmojiPicker } from "@multica/ui/components/common/emoji-picker";
 import { ContentEditor, type ContentEditorRef, TitleEditor } from "../editor";
 import { PriorityIcon } from "../issues/components/priority-icon";
@@ -70,6 +71,8 @@ export function CreateProjectModal({ onClose }: { onClose: () => void }) {
   const [leadType, setLeadType] = useState<"member" | "agent" | undefined>();
   const [leadId, setLeadId] = useState<string | undefined>();
   const [icon, setIcon] = useState<string | undefined>();
+  const [useExistingFolder, setUseExistingFolder] = useState(false);
+  const [localPath, setLocalPath] = useState("");
   const [iconPickerOpen, setIconPickerOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -88,13 +91,14 @@ export function CreateProjectModal({ onClose }: { onClose: () => void }) {
   const createProject = useCreateProject();
 
   const handleSubmit = async () => {
-    if (!title.trim() || submitting) return;
+    if (!title.trim() || submitting || (useExistingFolder && !localPath.trim())) return;
     setSubmitting(true);
     try {
       const project = await createProject.mutateAsync({
         title: title.trim(),
         description: descEditorRef.current?.getMarkdown()?.trim() || undefined,
         icon,
+        local_path: useExistingFolder && localPath.trim() ? localPath.trim() : undefined,
         status,
         priority,
         lead_type: leadType,
@@ -203,6 +207,21 @@ export function CreateProjectModal({ onClose }: { onClose: () => void }) {
         </div>
 
         <div className="flex items-center gap-1.5 px-4 py-2 shrink-0 flex-wrap">
+          <Input
+            value={localPath}
+            onChange={(e) => setLocalPath(e.target.value)}
+            placeholder="Folder path (optional)"
+            className="h-8 w-72"
+            disabled={!useExistingFolder}
+          />
+          <Button
+            type="button"
+            variant={useExistingFolder ? "default" : "outline"}
+            size="sm"
+            onClick={() => setUseExistingFolder((v) => !v)}
+          >
+            {useExistingFolder ? "Using existing folder" : "Create from folder"}
+          </Button>
           <DropdownMenu>
             <DropdownMenuTrigger
               render={
@@ -342,7 +361,11 @@ export function CreateProjectModal({ onClose }: { onClose: () => void }) {
         </div>
 
         <div className="flex items-center justify-end px-4 py-3 border-t shrink-0">
-          <Button size="sm" onClick={handleSubmit} disabled={!title.trim() || submitting}>
+          <Button
+            size="sm"
+            onClick={handleSubmit}
+            disabled={!title.trim() || submitting || (useExistingFolder && !localPath.trim())}
+          >
             {submitting ? "Creating..." : "Create Project"}
           </Button>
         </div>

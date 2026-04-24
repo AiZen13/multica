@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Input } from "@multica/ui/components/ui/input";
 import { Label } from "@multica/ui/components/ui/label";
 import { Button } from "@multica/ui/components/ui/button";
+import { Checkbox } from "@multica/ui/components/ui/checkbox";
 import { Card, CardContent } from "@multica/ui/components/ui/card";
 import { useCreateWorkspace } from "@multica/core/workspace/mutations";
 import type { Workspace } from "@multica/core/types";
@@ -24,6 +25,8 @@ export function CreateWorkspaceForm({ onSuccess }: CreateWorkspaceFormProps) {
   const createWorkspace = useCreateWorkspace();
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
+  const [useExistingFolder, setUseExistingFolder] = useState(false);
+  const [localPath, setLocalPath] = useState("");
   const [slugServerError, setSlugServerError] = useState<string | null>(null);
   const slugTouched = useRef(false);
 
@@ -33,7 +36,10 @@ export function CreateWorkspaceForm({ onSuccess }: CreateWorkspaceFormProps) {
       : null;
   const slugError = slugValidationError ?? slugServerError;
   const canSubmit =
-    name.trim().length > 0 && slug.trim().length > 0 && !slugError;
+    name.trim().length > 0 &&
+    slug.trim().length > 0 &&
+    !slugError &&
+    (!useExistingFolder || localPath.trim().length > 0);
 
   const handleNameChange = (value: string) => {
     setName(value);
@@ -52,7 +58,11 @@ export function CreateWorkspaceForm({ onSuccess }: CreateWorkspaceFormProps) {
   const handleCreate = () => {
     if (!canSubmit) return;
     createWorkspace.mutate(
-      { name: name.trim(), slug: slug.trim() },
+      {
+        name: name.trim(),
+        slug: slug.trim(),
+        local_path: useExistingFolder && localPath.trim() ? localPath.trim() : undefined,
+      },
       {
         onSuccess,
         onError: (error) => {
@@ -100,6 +110,29 @@ export function CreateWorkspaceForm({ onSuccess }: CreateWorkspaceFormProps) {
           </div>
           {slugError && (
             <p className="text-xs text-destructive">{slugError}</p>
+          )}
+        </div>
+        <div className="space-y-2">
+          <label htmlFor="ws-existing-folder" className="flex items-center gap-2 text-sm">
+            <Checkbox
+              id="ws-existing-folder"
+              checked={useExistingFolder}
+              onCheckedChange={(checked) => setUseExistingFolder(Boolean(checked))}
+            />
+            Create from existing folder
+          </label>
+          {useExistingFolder && (
+            <div className="space-y-1.5">
+              <Label htmlFor="ws-local-path">Folder path</Label>
+              <Input
+                id="ws-local-path"
+                type="text"
+                value={localPath}
+                onChange={(e) => setLocalPath(e.target.value)}
+                placeholder="/Users/name/projects/my-workspace"
+                onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+              />
+            </div>
           )}
         </div>
         <Button
